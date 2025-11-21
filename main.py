@@ -1,6 +1,14 @@
 """CHANGE NAME LATER"""
 """Stores existance of the simulation"""
 
+"""
+divergence = (uT - uB + uR - uL) / cell_size;
+
+rhs = density * divergence / dt;
+h2 = cell_size * cell_size;
+pressure = (pB + pT + pL + pR - h2 * rhs) / num_neighbors
+"""
+
 import matplotlib.pyplot as plt
 
 class Simulation:
