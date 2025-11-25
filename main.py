@@ -1,39 +1,46 @@
-"""CHANGE NAME LATER"""
-"""Stores existance of the simulation"""
+"""Main script to run LPCVD Model"""
 
-
-"""
-TO-DO
-Start :)
-Set up velocity solve - try before Tuesday
-"""
-
-import matplotlib.pyplot as plt
-
-class Simulation:
-    def __init__(self):
-        self.time = 0.0
-        self.dt = 0.01
-        self.steps = 1000
-        
-        ## Constants
-        self.density = 1.0
-        self.cell_size = 1.0
-
-        self.divergence = []
-        self.pressure = []
-        self.viscosity = []
-        self.concentration = []
-        self.temperature = []
-
-    def solve_divergence(self):
-        pass
-
-    def solve_velocity(self):
-        pass
+from model_code import *
 
 def main():
-    pass
+    # Configuration with stable parameters
+    config = SimulationConfig(
+        # nr=20,  # Small grid for debugging
+        # nz=30,
+        # inlet_velocity=0.5,  # Moderate velocity
+        # under_relaxation_p=0.1,  # Very conservative
+        # under_relaxation_v=0.3,
+        # max_iterations=2000
+    )
     
+    fluid = FluidProperties(
+        density=0.15,
+        viscosity=1.5e-5
+    )
+    
+    print("="*70)
+    print("LPCVD REACTOR SIMULATION")
+    print("="*70)
+    print(f"\nConfiguration:")
+    print(f"  Grid: {config.nr} × {config.nz}")
+    print(f"  Inlet velocity: {config.inlet_velocity} m/s")
+    print(f"  Pressure: {config.pressure_outlet} Pa ({config.pressure_outlet/133.322:.1f} torr)")
+    print(f"  Under-relaxation: α_p={config.under_relaxation_p}, α_v={config.under_relaxation_v}")
+    
+    # Create and run solver
+    solver = NavierStokesSolver(config, fluid)
+    
+    converged = solver.solve(verbose=True)
+    
+    if converged:
+        print("\n" + "="*70)
+        print("SUCCESS - Visualizing results")
+        print("="*70)
+        solver.visualize()
+    else:
+        print("\n" + "="*70)
+        print("FAILED - Check parameters and try again")
+        print("="*70)
+
 if __name__ == "__main__":
     main()
