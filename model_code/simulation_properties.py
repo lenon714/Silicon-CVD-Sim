@@ -13,8 +13,8 @@ class FluidProperties:
 class SimulationConfig:
     """Configuration for the LPCVD reactor simulation"""
     # Grid dimensions
-    nr: int = 20 
-    nz: int = 30
+    nr: int = 38 
+    nz: int = 53
     
     # Physical dimensions
     r_max: float = 0.21

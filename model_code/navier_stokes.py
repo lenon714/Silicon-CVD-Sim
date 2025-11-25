@@ -54,7 +54,7 @@ class NavierStokesSolver:
         # === SYMMETRY AXIS ===
         self.vr[0, :] = 0.0
         
-        # === WALLS (no-slip) ===
+        # === WALLS ===
         # Top wall (outside inlet)
         top_wall_vr = self.grid.r_faces >= self.config.pipe_radius
         top_wall_vz = self.grid.r_centers >= self.config.pipe_radius
@@ -341,5 +341,5 @@ class NavierStokesSolver:
         axes[1, 1].legend()
         
         plt.tight_layout()
-        plt.savefig('converged_solution.png', dpi=150, bbox_inches='tight')
+        plt.savefig('Navier-Stokes_Solutions\converged_solution_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S")+ '.png', dpi=150, bbox_inches='tight')
         plt.show()
