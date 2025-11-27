@@ -21,7 +21,7 @@ class NavierStokesSolver:
         
         # Initialize vz with linear profile from inlet to outlet
         for i in range(nr):
-            self.vz[i, :] = np.linspace(self.config.inlet_velocity, 0.1, nz + 1)
+            self.vz[i, :] = np.logspace(self.config.inlet_velocity, 0.1, nz + 1)
         
         # Pressure
         self.p = np.ones((nr, nz)) * self.config.pressure_outlet
@@ -70,10 +70,7 @@ class NavierStokesSolver:
         self.vz[-1, :] = 0.0
         
     def solve_momentum_explicit(self):
-        """
-        Simplified explicit momentum solver
-        More stable than implicit for debugging
-        """
+        """Momentum Solver"""
         nr, nz = self.config.nr, self.config.nz
         mu = self.fluid.viscosity
         alpha_v = self.config.under_relaxation_v
@@ -139,57 +136,189 @@ class NavierStokesSolver:
         self.vr = np.clip(self.vr, -10*self.config.inlet_velocity, 10*self.config.inlet_velocity)
         self.vz = np.clip(self.vz, -10*self.config.inlet_velocity, 10*self.config.inlet_velocity)
         
-    def solve_pressure_correction(self):
-        """
-        Pressure correction using Jacobi iteration
-        """
+    def solve_pressure(self):
+        """Line TDMA with proper boundary conditions"""
         nr, nz = self.config.nr, self.config.nz
-        alpha_p = self.config.under_relaxation_p
         
-        # Reset pressure correction
         self.p_prime[:] = 0.0
         
-        # Inner iterations for pressure
-        for inner_iter in range(10):
+        for outer_iter in range(200):
             p_prime_old = self.p_prime.copy()
             
-            for i in range(1, nr - 1):
-                for j in range(1, nz - 1):
+            # ========== RADIAL SWEEPS (along rows, j fixed) ==========
+            for j in range(1, nz - 1):
+                n = nr - 2  # Interior points: i = 1 to nr-2
+                
+                a = np.zeros(n)  # Sub-diagonal (West neighbor)
+                b = np.zeros(n)  # Diagonal (Center)
+                c = np.zeros(n)  # Super-diagonal (East neighbor)
+                d = np.zeros(n)  # RHS
+                
+                for idx, i in enumerate(range(1, nr - 1)):
+                    dr = self.grid.dr[i]
+                    dz = self.grid.dz[j]
                     r = self.grid.r_centers[i]
-                    if r < 1e-10:
-                        continue
                     
-                    # Compute mass imbalance (continuity residual)
-                    # Radial flux: (1/r) * d(r*rho*vr)/dr
-                    r_plus = self.grid.r_faces[i+1]
-                    r_minus = self.grid.r_faces[i]
+                    # Standard coefficients
+                    a_E = 1/dr**2 + 1/(2*r*dr)
+                    a_W = 1/dr**2 - 1/(2*r*dr)
+                    a_N = 1/dz**2
+                    a_S = 1/dz**2
+                    a_P = a_E + a_W + a_N + a_S
                     
-                    flux_r_plus = r_plus * self.rho[i, j] * self.vr[i+1, j]
-                    flux_r_minus = r_minus * self.rho[i, j] * self.vr[i, j]
-                    div_r = (flux_r_plus - flux_r_minus) / (r * self.grid.dr[i])
+                    # Source term (mass imbalance)
+                    mass_imb = self._compute_mass_imbalance_at(i, j)
                     
-                    # Axial flux: d(rho*vz)/dz
-                    flux_z_plus = self.rho[i, j] * self.vz[i, j+1]
-                    flux_z_minus = self.rho[i, j] * self.vz[i, j]
-                    div_z = (flux_z_plus - flux_z_minus) / self.grid.dz[j]
+                    # === Handle WEST boundary (i=0, the axis) ===
+                    if idx == 0:  # First interior cell (i=1)
+                        # Symmetry BC: ∂p'/∂r = 0 at r=0
+                        # This means p'[0,j] = p'[1,j]
+                        # Absorb a_W into diagonal
+                        b[idx] = a_P - a_W
+                        a[idx] = 0  # No West connection
+                    else:
+                        b[idx] = a_P
+                        a[idx] = -a_W
                     
-                    mass_imbalance = div_r + div_z
+                    # === Handle EAST boundary (i=nr-1, outer wall) ===
+                    if idx == n - 1:  # Last interior cell (i=nr-2)
+                        # Wall BC: ∂p'/∂r = 0 at r=r_max
+                        # This means p'[nr-1,j] = p'[nr-2,j]
+                        # Absorb a_E into diagonal
+                        b[idx] = a_P - a_E
+                        c[idx] = 0  # No East connection
+                    else:
+                        c[idx] = -a_E
                     
-                    # Pressure correction (Jacobi-style)
-                    coeff = 2.0 / (self.grid.dr[i]**2) + 2.0 / (self.grid.dz[j]**2)
-                    
-                    self.p_prime[i, j] = -alpha_p * mass_imbalance / (coeff + 1e-10)
+                    # RHS includes North/South contributions (from previous sweep)
+                    d[idx] = -mass_imb + a_N * self.p_prime[i, j+1] + a_S * self.p_prime[i, j-1]
+                
+                # Solve and store
+                solution = self._tdma(a, b, c, d)
+                for idx, i in enumerate(range(1, nr - 1)):
+                    self.p_prime[i, j] = solution[idx]
             
-            # Check inner convergence
+            # ========== AXIAL SWEEPS (along columns, i fixed) ==========
+            for i in range(1, nr - 1):
+                n = nz - 2  # Interior points: j = 1 to nz-2
+                
+                a = np.zeros(n)  # Sub-diagonal (South neighbor)
+                b = np.zeros(n)  # Diagonal (Center)
+                c = np.zeros(n)  # Super-diagonal (North neighbor)
+                d = np.zeros(n)  # RHS
+                
+                for idx, j in enumerate(range(1, nz - 1)):
+                    dr = self.grid.dr[i]
+                    dz = self.grid.dz[j]
+                    r = self.grid.r_centers[i]
+                    
+                    a_E = 1/dr**2 + 1/(2*r*dr)
+                    a_W = 1/dr**2 - 1/(2*r*dr)
+                    a_N = 1/dz**2
+                    a_S = 1/dz**2
+                    a_P = a_E + a_W + a_N + a_S
+                    
+                    mass_imb = self._compute_mass_imbalance_at(i, j)
+                    
+                    # === Handle SOUTH boundary (j=0, bottom/outlet) ===
+                    if idx == 0:  # First interior cell (j=1)
+                        # DIRICHLET: p' = 0 at outlet (fixes pressure level)
+                        # p'[i,0] = 0, so the a_S term contributes 0 to RHS
+                        b[idx] = a_P
+                        a[idx] = 0  # No South connection in tridiag
+                        # d[idx] already doesn't include a_S * p'[i,0] since it's 0
+                    else:
+                        b[idx] = a_P
+                        a[idx] = -a_S
+                    
+                    # === Handle NORTH boundary (j=nz-1, top/inlet) ===
+                    if idx == n - 1:  # Last interior cell (j=nz-2)
+                        # NEUMANN: ∂p'/∂z = 0 at inlet (velocity is fixed)
+                        # p'[i,nz-1] = p'[i,nz-2]
+                        # Absorb a_N into diagonal
+                        b[idx] = a_P - a_N
+                        c[idx] = 0  # No North connection
+                    else:
+                        c[idx] = -a_N
+                    
+                    # RHS includes East/West contributions (from radial sweep)
+                    d[idx] = -mass_imb + a_E * self.p_prime[i+1, j] + a_W * self.p_prime[i-1, j]
+                
+                # Solve and store
+                solution = self._tdma(a, b, c, d)
+                for idx, j in enumerate(range(1, nz - 1)):
+                    self.p_prime[i, j] = solution[idx]
+            
+            # ========== Apply BCs to p_prime array ==========
+            # Axis (r=0): symmetry
+            self.p_prime[0, :] = self.p_prime[1, :]
+            
+            # Outer wall (r=r_max): zero gradient
+            self.p_prime[-1, :] = self.p_prime[-2, :]
+            
+            # Bottom (z=0): Dirichlet p'=0
+            self.p_prime[:, 0] = 0.0
+            
+            # Top (z=z_max): zero gradient
+            self.p_prime[:, -1] = self.p_prime[:, -2]
+            
+            # Check convergence
             change = np.max(np.abs(self.p_prime - p_prime_old))
             if change < 1e-6:
                 break
         
         # Update pressure
-        self.p += self.p_prime
-        
-        # Ensure positive pressure
+        self.p += self.config.under_relaxation_p * self.p_prime
         self.p = np.maximum(self.p, 0.1 * self.config.pressure_outlet)
+
+    def _tdma(self, a, b, c, d):
+        """
+        Thomas Algorithm - solves tridiagonal system
+        
+        a: sub-diagonal (a[0] not used)
+        b: main diagonal
+        c: super-diagonal (c[-1] not used)
+        d: right-hand side
+        
+        Returns: solution vector
+        """
+        n = len(d)
+        
+        # Forward elimination
+        c_prime = np.zeros(n)
+        d_prime = np.zeros(n)
+        
+        c_prime[0] = c[0] / b[0]
+        d_prime[0] = d[0] / b[0]
+        
+        for i in range(1, n):
+            denom = b[i] - a[i] * c_prime[i-1]
+            c_prime[i] = c[i] / denom
+            d_prime[i] = (d[i] - a[i] * d_prime[i-1]) / denom
+        
+        # Back substitution
+        x = np.zeros(n)
+        x[-1] = d_prime[-1]
+        
+        for i in range(n-2, -1, -1):
+            x[i] = d_prime[i] - c_prime[i] * x[i+1]
+        
+        return x
+    
+    def _compute_mass_imbalance_at(self, i, j):
+        """Compute continuity residual at cell (i,j)"""
+        r = self.grid.r_centers[i]
+        r_plus = self.grid.r_faces[i+1]
+        r_minus = self.grid.r_faces[i]
+        dr, dz = self.grid.dr[i], self.grid.dz[j]
+        
+        # Radial flux
+        flux_r = (r_plus * self.vr[i+1, j] - r_minus * self.vr[i, j]) / (r * dr)
+        
+        # Axial flux
+        flux_z = (self.vz[i, j+1] - self.vz[i, j]) / dz
+        
+        return self.rho[i, j] * (flux_r + flux_z)
         
     def correct_velocities(self):
         """Correct velocities based on pressure correction"""
@@ -267,7 +396,7 @@ class NavierStokesSolver:
             self.apply_boundary_conditions()
             
             # 4. Solve pressure correction
-            self.solve_pressure_correction()
+            self.solve_pressure()
             
             # 5. Correct velocities
             self.correct_velocities()

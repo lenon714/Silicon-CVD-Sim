@@ -5,12 +5,12 @@ from model_code import *
 def main():
     # Configuration with stable parameters
     config = SimulationConfig(
-        # nr=20,
-        # nz=30,
-        # inlet_velocity=0.5,
-        # under_relaxation_p=0.1,
-        # under_relaxation_v=0.3,
-        # max_iterations=2000
+        nr=20,
+        nz=30,
+        inlet_velocity=0.5,
+        under_relaxation_p=0.5,
+        under_relaxation_v=0.3,
+        max_iterations=5000
     )
     
     fluid = FluidProperties(
