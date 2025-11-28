@@ -42,32 +42,8 @@ class NavierStokesSolver:
         
     def apply_boundary_conditions(self):
         """Apply boundary conditions"""
-        nr, nz = self.config.nr, self.config.nz
-        
-        # === INLET ===
-        inlet_mask_vr = self.grid.r_faces < self.config.pipe_radius
-        inlet_mask_vz = self.grid.r_centers < self.config.pipe_radius
-        
-        self.vr[inlet_mask_vr, -1] = 0.0
-        self.vz[inlet_mask_vz, -1] = self.config.inlet_velocity
-        
-        # === SYMMETRY AXIS ===
-        self.vr[0, :] = 0.0
-        
-        # === WALLS ===
-        # Top wall (outside inlet)
-        top_wall_vr = self.grid.r_faces >= self.config.pipe_radius
-        top_wall_vz = self.grid.r_centers >= self.config.pipe_radius
-        self.vr[top_wall_vr, -1] = 0.0
-        self.vz[top_wall_vz, -1] = 0.0
-        
-        # Bottom (wafer + wall)
-        self.vr[:, 0] = 0.0
-        self.vz[:, 0] = 0.0
-        
-        # Outer wall
-        self.vr[-1, :] = 0.0
-        self.vz[-1, :] = 0.0
+        bc = VelocityBoundaryConditions(self.grid, self.config)
+        self.vr, self.vz = bc.apply(self.vr, self.vz, self.rho)
         
     def solve_momentum_explicit(self):
         """Momentum Solver"""
@@ -416,7 +392,7 @@ class NavierStokesSolver:
             if iteration % 10 == 0:
                 mass_res, vr_res, vz_res = self.compute_residuals()
                 
-                if verbose and iteration % 100 == 0:
+                if verbose and iteration % 50 == 0:
                     print(f"Iteration {iteration:4d}: mass_res={mass_res:.6e}, "
                           f"vr_max={np.max(np.abs(self.vr)):.6f}, "
                           f"vz_max={np.max(np.abs(self.vz)):.6f}")
