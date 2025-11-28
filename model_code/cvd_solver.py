@@ -19,9 +19,9 @@ class CVDSolver:
         self.vr = np.zeros((nr + 1, nz))
         self.vz = np.zeros((nr, nz + 1))
         
-        # Initialize vz with linear profile from inlet to outlet
+        # # Initialize vz with linear profile from inlet to outlet
         for i in range(nr):
-            self.vz[i, :] = np.logspace(self.config.inlet_velocity, 0.1, nz + 1)
+            self.vz[i, :] = np.linspace(self.config.inlet_velocity, 0.1, nz + 1)
         
         # Pressure
         self.p = np.ones((nr, nz)) * self.config.pressure_outlet
@@ -70,19 +70,16 @@ class CVDSolver:
         # Correct radial velocities
         for i in range(1, nr):
             for j in range(1, nz - 1):
-                i_left = max(i-1, 0)
-                i_right = min(i, nr-1)
-                dp_prime_dr = (self.p_prime[i_right, j] - self.p_prime[i_left, j]) / self.grid.dr[i-1]
-                
-                # Simple correction
-                self.vr[i, j] -= 0.1 * dp_prime_dr / (self.rho[i_left, j] + 1e-10)
+                i_w = max(i-1, 0)
+                i_e = min(i, nr-1)
+
+                self.vr[i, j] += self.d_r[i,j] * (self.p_prime[i_w, j] - self.p_prime[i_e, j])
         
         # Correct axial velocities
         for i in range(1, nr - 1):
-            for j in range(1, nz):
-                dp_prime_dz = (self.p_prime[i, j] - self.p_prime[i, j-1]) / self.grid.dz[j-1]
-                
-                self.vz[i, j] -= 0.1 * dp_prime_dz / (self.rho[i, j-1] + 1e-10)
+            for j in range(1, nz):          
+
+                self.vz[i, j] += self.d_z[i,j] * (self.p_prime[i, j-1] - self.p_prime[i, j] )
         
     def compute_residuals(self) -> Tuple[float, float, float]:
         """Compute residuals"""

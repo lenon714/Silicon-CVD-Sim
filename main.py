@@ -7,8 +7,8 @@ def main():
     config = SimulationConfig(
         nr=30,
         nz=20,
-        inlet_velocity=0.1,
-        under_relaxation_p=0.01,
+        inlet_velocity=0.05,
+        under_relaxation_p=0.5,
         under_relaxation_v=0.3,
         max_iterations=8000,
         pressure_outlet=100

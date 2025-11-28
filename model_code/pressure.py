@@ -11,6 +11,12 @@ class PressureSolver:
         nr, nz = self.nr, self.nz
         p_prime[:] = 0.0
         
+        if True:
+            print(f"\n  d_r range: [{d_r.min():.2e}, {d_r.max():.2e}]")
+            print(f"  d_z range: [{d_z.min():.2e}, {d_z.max():.2e}]")
+            print(f"  d_r nonzero: {np.count_nonzero(d_r)} / {d_r.size}")
+            print(f"  d_z nonzero: {np.count_nonzero(d_z)} / {d_z.size}")
+
         for outer_iter in range(200):
             p_prime_old = p_prime.copy()
             
@@ -23,11 +29,22 @@ class PressureSolver:
                 c = np.zeros(n)  # Super-diagonal (East neighbor)
                 d = np.zeros(n)  # RHS
                 
-                for idx, i in enumerate(range(1, nr - 1)):
+                for idx, i in enumerate(range(1, nr - 1)):  
+                    # Grid geometry
+                    r = self.grid.r_centers[i]
                     dr = self.grid.dr[i]
                     dz = self.grid.dz[j]
-                    r = self.grid.r_centers[i]
                     
+                    # Face positions
+                    r_e = self.grid.r_faces[i + 1]
+                    r_w = self.grid.r_faces[i]
+                    
+                    # Face areas (per radian, for axisymmetric)
+                    A_e = r_e * dz  # East face (radial)
+                    A_w = r_w * dz  # West face (radial)
+                    A_n = r * dr    # North face (axial)
+                    A_s = r * dr    # South face (axial)
+
                     # Calculate densities
                     rho_e = 0.5 * (rho[i, j] + rho[min(i+1, nr-1), j])
                     rho_w = 0.5 * (rho[max(i-1, 0), j] + rho[i, j])
@@ -35,15 +52,14 @@ class PressureSolver:
                     rho_s = 0.5 * (rho[i, max(j-1, 0)] + rho[i, j])
 
                     # Standard coefficients
-                    a_E = rho_e * d_r[i+1, j] if i+1 <= nr else 0
-                    a_W = rho_w * d_r[i, j] if i > 0 else 0
-                    a_N = rho_n * d_z[i, j+1] if j+1 <= nz else 0
-                    a_S = rho_s * d_z[i, j] if j > 0 else 0
+                    a_E = rho_e * d_r[i+1, j] * A_e if i + 1 < nr else 0
+                    a_W = rho_w * d_r[i, j] * A_w if i > 0 else 0
+                    a_N = rho_n * d_z[i, j+1] * A_n if j + 1 < nz else 0
+                    a_S = rho_s * d_z[i, j] * A_s if j > 0 else 0
                     a_P = a_E + a_W + a_N + a_S
-                    
-                    # Source term (mass imbalance)
+
                     mass_imb = self._compute_mass_imbalance_at(i, j, vr, vz, rho)
-                    
+
                     # === Handle WEST boundary (i=0, the axis) ===
                     if idx == 0:
                         b[idx] = a_P - a_W
@@ -76,19 +92,37 @@ class PressureSolver:
                 c = np.zeros(n)  # Super-diagonal (North neighbor)
                 d = np.zeros(n)  # RHS
                 
-                for idx, j in enumerate(range(1, nz - 1)):
+                for idx, j in enumerate(range(1, nz - 1)):   
+                    # Grid geometry
+                    r = self.grid.r_centers[i]
                     dr = self.grid.dr[i]
                     dz = self.grid.dz[j]
-                    r = self.grid.r_centers[i]
                     
-                    a_E = 1/dr**2 + 1/(2*r*dr)
-                    a_W = 1/dr**2 - 1/(2*r*dr)
-                    a_N = 1/dz**2
-                    a_S = 1/dz**2
+                    # Face positions
+                    r_e = self.grid.r_faces[i + 1]
+                    r_w = self.grid.r_faces[i]
+                    
+                    # Face areas
+                    A_e = r_e * dz
+                    A_w = r_w * dz
+                    A_n = r * dr
+                    A_s = r * dr
+
+                    # Calculate densities
+                    rho_e = 0.5 * (rho[i, j] + rho[min(i+1, nr-1), j])
+                    rho_w = 0.5 * (rho[max(i-1, 0), j] + rho[i, j])
+                    rho_n = 0.5 * (rho[i, j] + rho[i, min(j+1, nz-1)])
+                    rho_s = 0.5 * (rho[i, max(j-1, 0)] + rho[i, j])
+
+                    # Standard coefficients
+                    a_E = rho_e * d_r[i+1, j] * A_e if i + 1 < nr else 0
+                    a_W = rho_w * d_r[i, j] * A_w if i > 0 else 0
+                    a_N = rho_n * d_z[i, j+1] * A_n if j + 1 < nz else 0
+                    a_S = rho_s * d_z[i, j] * A_s if j > 0 else 0
                     a_P = a_E + a_W + a_N + a_S
-                    
-                    mass_imb = self._compute_mass_imbalance_at(i, j, vr, vz, rho)
-                    
+
+                    mass_imb = self._compute_mass_imbalance_at(i, j, vr, vz, rho)  
+
                     # === Handle SOUTH boundary (j=0, bottom/outlet) ===
                     if idx == 0:
                         b[idx] = a_P
@@ -177,7 +211,7 @@ class PressureSolver:
         
         # Calculate Mass Fluxes
         m_e = rho[i, j] * vr[i+1, j] * r_e * dz
-        m_w = rho[i, j] * vr[i+1, j] * r_w * dz
+        m_w = rho[i, j] * vr[i, j] * r_w * dz
         m_n = rho[i, j] * vz[i, j+1] * r * dr
         m_s = rho[i, j] * vz[i, j] * r * dr
         

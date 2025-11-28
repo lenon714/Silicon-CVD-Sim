@@ -103,7 +103,7 @@ class VelocityBoundaryConditions:
         for i in range(self.nr):
             r_center = self.grid.r_centers[i]
             if r_center < R_pipe:
-                vz[i, -1] = V_in  # Positive = flow in +z direction
+                vz[i, -1] = -V_in  # Positive = flow in +z direction
                                   # If z increases upward and flow is down,
                                   # this should be negative. Check your convention!
     

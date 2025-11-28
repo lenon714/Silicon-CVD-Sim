@@ -5,7 +5,7 @@ from model_code import *
 @dataclass
 class FluidProperties:
     """Fluid properties"""
-    density: float = 0.15  # kg/m³ (N2 at 1 torr, 300K)
+    density: float = 0.0015  # kg/m³ (N2 at 1 torr, 300K)
     viscosity: float = 1.5e-5  # Pa·s
     bulk_viscosity: float = 0.0
     
@@ -36,7 +36,7 @@ class SimulationConfig:
     under_relaxation_v: float = 0.3
     
     # Gravity
-    gravity: float = 9.81
+    gravity: float = 0
 
 class StaggeredGrid:
     """Staggered grid in cylindrical coordinates"""
@@ -45,7 +45,7 @@ class StaggeredGrid:
         self.config = config
         self.nr, self.nz = config.nr, config.nz
         
-        # Use UNIFORM grid for stability during debugging
+        # Non uniform grid
         self.r_faces = np.linspace(0, config.r_max, config.nr + 1)
         self.z_faces = np.linspace(0, config.z_max, config.nz + 1)
         
