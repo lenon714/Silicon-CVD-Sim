@@ -53,7 +53,7 @@ class StaggeredGrid:
         self.r_centers = 0.5 * (self.r_faces[:-1] + self.r_faces[1:])
         self.z_centers = 0.5 * (self.z_faces[:-1] + self.z_faces[1:])
         
-        # Grid spacing (constant for uniform grid)
+        # Grid spacing
         self.dr = np.diff(self.r_faces)
         self.dz = np.diff(self.z_faces)
         

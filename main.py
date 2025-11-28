@@ -5,10 +5,10 @@ from model_code import *
 def main():
     # Configuration with stable parameters
     config = SimulationConfig(
-        nr=100,
-        nz=60,
-        inlet_velocity=0.3,
-        under_relaxation_p=0.5,
+        nr=30,
+        nz=20,
+        inlet_velocity=0.1,
+        under_relaxation_p=0.01,
         under_relaxation_v=0.3,
         max_iterations=8000,
         pressure_outlet=100
@@ -29,7 +29,7 @@ def main():
     print(f"  Under-relaxation: α_p={config.under_relaxation_p}, α_v={config.under_relaxation_v}")
     
     # Create and run solver
-    solver = NavierStokesSolver(config, fluid)
+    solver = CVDSolver(config, fluid)
     
     converged = solver.solve(verbose=True)
     

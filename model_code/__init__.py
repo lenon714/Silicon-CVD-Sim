@@ -8,4 +8,6 @@ from datetime import datetime
 
 from model_code.simulation_properties import SimulationConfig, FluidProperties, StaggeredGrid
 from model_code.boundary_conditions import VelocityBoundaryConditions
-from model_code.navier_stokes import NavierStokesSolver
+from model_code.momentum import MomentumSolver
+from model_code.pressure import PressureSolver
+from model_code.cvd_solver import CVDSolver
