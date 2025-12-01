@@ -11,7 +11,7 @@ class PressureSolver:
         nr, nz = self.nr, self.nz
         p_prime[:] = 0.0
         
-        if True:
+        if False:
             print(f"\n  d_r range: [{d_r.min():.2e}, {d_r.max():.2e}]")
             print(f"  d_z range: [{d_z.min():.2e}, {d_z.max():.2e}]")
             print(f"  d_r nonzero: {np.count_nonzero(d_r)} / {d_r.size}")
@@ -146,19 +146,19 @@ class PressureSolver:
                 for idx, j in enumerate(range(1, nz - 1)):
                     p_prime[i, j] = solution[idx]
             
-            # ========== Apply BCs to p_prime array ==========
-            # Axis (r=0): symmetry
-            p_prime[0, :] = p_prime[1, :]
-            
-            # Outer wall (r=r_max): zero gradient
-            p_prime[-1, :] = p_prime[-2, :]
-            
-            # Bottom (z=0): Dirichlet p'=0
-            p_prime[:, 0] = 0.0
-            
-            # Top (z=z_max): zero gradient
-            p_prime[:, -1] = p_prime[:, -2]
-            
+                # ========== Apply BCs to p_prime array ==========
+                # Axis (r=0): symmetry
+                p_prime[0, :] = p_prime[1, :]
+                
+                # Outer wall (r=r_max): zero gradient
+                p_prime[-1, :] = p_prime[-2, :]
+                
+                # Bottom (z=0): Dirichlet p'=0
+                p_prime[:, 0] = 0.0
+                
+                # Top (z=z_max): zero gradient
+                p_prime[:, -1] = p_prime[:, -2]
+                
             # Check convergence
             change = np.max(np.abs(p_prime - p_prime_old))
             if change < 1e-6:

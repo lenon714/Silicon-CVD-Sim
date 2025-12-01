@@ -5,9 +5,10 @@ from model_code import *
 @dataclass
 class FluidProperties:
     """Fluid properties"""
-    density: float = 0.0015  # kg/m³ (N2 at 1 torr, 300K)
+    density: float = 0.00116  # kg/m³ (N2 at 1 torr, 300K)
     viscosity: float = 1.5e-5  # Pa·s
     bulk_viscosity: float = 0.0
+    tc: float = 0.026 # Thermal Conductivity
     
 @dataclass
 class SimulationConfig:
@@ -37,6 +38,15 @@ class SimulationConfig:
     
     # Gravity
     gravity: float = 0
+
+    # Wall Temperatures
+    T_inlet: float = 290
+    T_wall: float = 290
+    T_wafer: float = 1000
+
+@dataclass
+class Nitrogen:
+    pass
 
 class StaggeredGrid:
     """Staggered grid in cylindrical coordinates"""

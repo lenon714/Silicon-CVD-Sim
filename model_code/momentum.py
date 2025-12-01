@@ -107,6 +107,7 @@ class MomentumSolver:
                 
                 # Center coefficient
                 a_P0 = a_E + a_W + a_N + a_S - S_p
+                # This term caused a lot of instability
                 # + (m_dot_e - m_dot_w + m_dot_n - m_dot_s) 
                 
                 # Ensure a_P is positive for stability

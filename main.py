@@ -11,7 +11,7 @@ def main():
         under_relaxation_p=0.5,
         under_relaxation_v=0.3,
         max_iterations=8000,
-        pressure_outlet=100
+        pressure_outlet=100,
     )
     
     fluid = FluidProperties(
