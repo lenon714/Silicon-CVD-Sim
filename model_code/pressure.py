@@ -58,7 +58,7 @@ class PressureSolver:
                     a_S = rho_s * d_z[i, j] * A_s if j > 0 else 0
                     a_P = a_E + a_W + a_N + a_S
 
-                    mass_imb = self._compute_mass_imbalance_at(i, j, vr, vz, rho)
+                    mass_imb = self._compute_mass_imbalance(i, j, vr, vz, rho)
 
                     # === Handle WEST boundary (i=0, the axis) ===
                     if idx == 0:
@@ -121,7 +121,7 @@ class PressureSolver:
                     a_S = rho_s * d_z[i, j] * A_s if j > 0 else 0
                     a_P = a_E + a_W + a_N + a_S
 
-                    mass_imb = self._compute_mass_imbalance_at(i, j, vr, vz, rho)  
+                    mass_imb = self._compute_mass_imbalance(i, j, vr, vz, rho)  
 
                     # === Handle SOUTH boundary (j=0, bottom/outlet) ===
                     if idx == 0:
@@ -202,18 +202,25 @@ class PressureSolver:
         
         return x
     
-    def _compute_mass_imbalance_at(self, i, j, vr, vz, rho):
+    def _compute_mass_imbalance(self, i, j, vr, vz, rho):
         """Compute continuity residual at cell (i,j)"""
+        nr, nz = self.nr, self.nz
+        
         r = self.grid.r_centers[i]
         r_e = self.grid.r_faces[i+1]
         r_w = self.grid.r_faces[i]
         dr, dz = self.grid.dr[i], self.grid.dz[j]
         
+        rho_e = 0.5 * (rho[i, j] + rho[min(i+1, nr-1), j])
+        rho_w = 0.5 * (rho[max(i-1, 0), j] + rho[i, j])
+        rho_n = 0.5 * (rho[i, j] + rho[i, min(j+1, nz-1)])
+        rho_s = 0.5 * (rho[i, max(j-1, 0)] + rho[i, j])
+
         # Calculate Mass Fluxes
-        m_e = rho[i, j] * vr[i+1, j] * r_e * dz
-        m_w = rho[i, j] * vr[i, j] * r_w * dz
-        m_n = rho[i, j] * vz[i, j+1] * r * dr
-        m_s = rho[i, j] * vz[i, j] * r * dr
+        m_e = rho_e * vr[i+1, j] * r_e * dz
+        m_w = rho_w * vr[i, j] * r_w * dz
+        m_n = rho_n * vz[i, j+1] * r * dr
+        m_s = rho_s * vz[i, j] * r * dr
         
         return m_e - m_w + m_n - m_s
 

@@ -26,7 +26,7 @@ class MomentumSolver:
         self.d_r = np.zeros((self.nr + 1, self.nz))
         self.d_z = np.zeros((self.nr, self.nz + 1))
         
-    def solve_radial_momentum(self, vr, vz, p, rho):
+    def solve_radial_momentum(self, vr, vz, p, rho, mu):
         """
         Solve radial momentum equation:
         
@@ -36,7 +36,6 @@ class MomentumSolver:
         Interior points: i = 1 to nr-1, j = 1 to nz-2
         """
         nr, nz = self.nr, self.nz
-        mu = self.fluid.viscosity
         vr_new = vr.copy()
         alpha = self.config.under_relaxation_v
         
@@ -90,11 +89,24 @@ class MomentumSolver:
                 vz_s = 0.5 * (vz[i_w, j] + vz[i_e, j])
                 m_dot_s = rho_p * vz_s * A_s
                 
+                # === VISCOSITIES ===
+                mu_e = mu[i_e, j]
+                mu_w = mu[i_w, j]
+                mu_p = 0.5 * (mu_w + mu_e)
+
+                j_n = min(j + 1, nz - 1)
+                mu_n = 0.5 * (mu[i_w, j_n] + mu[i_e, j_n])
+                mu_n = 0.5 * (mu_p + mu_n)
+
+                j_s = max(j - 1, 0)
+                mu_s = 0.5 * (mu[i_w, j_s] + mu[i_e, j_s])
+                mu_s = 0.5 * (mu_p + mu_s)
+
                 # === DIFFUSION COEFFICIENTS ===
-                D_e = 2 * mu * A_e / dr_e
-                D_w = 2 * mu * A_w / dr_w
-                D_n = mu * A_n / dz_n
-                D_s = mu * A_s / dz_s
+                D_e = 2 * mu_e * A_e / dr_e
+                D_w = 2 * mu_w * A_w / dr_w
+                D_n = mu_n * A_n / dz_n
+                D_s = mu_s * A_s / dz_s
                 
                 # === NEIGHBOR COEFFICIENTS ===
                 a_E = D_e + max(-m_dot_e, 0)
@@ -103,7 +115,7 @@ class MomentumSolver:
                 a_S = D_s + max(m_dot_s, 0)
                 
                 # Source term: -2μ v_r / r²
-                S_p = -2 * mu * dV / (r * r)  # Coefficient of v_r in source
+                S_p = -2 * mu[i, j] * dV / (r * r)  # Coefficient of v_r in source
                 
                 # Center coefficient
                 a_P0 = a_E + a_W + a_N + a_S - S_p
@@ -111,7 +123,7 @@ class MomentumSolver:
                 # + (m_dot_e - m_dot_w + m_dot_n - m_dot_s) 
                 
                 # Ensure a_P is positive for stability
-                a_P0 = max(a_P0, 1e-10)
+                # a_P0 = max(a_P0, 1e-10)
                 
                 # === NEIGHBOR VELOCITIES ===
                 vr_E = vr[min(i+1, nr), j]
@@ -132,7 +144,7 @@ class MomentumSolver:
                 
                 # vr_new[i, j] = numerator / a_P
                 
-                a_P = a_P0 / alpha  # Effective central coefficient
+                a_P = a_P0 / alpha # Effective central coefficient
                 
                 # Source now includes contribution from old velocity
                 source_old = ((1 - alpha) / alpha) * a_P0 * vr[i, j]
@@ -145,13 +157,9 @@ class MomentumSolver:
                 # Store d coefficient for pressure correction
                 self.d_r[i, j] = A_pressure / a_P
         
-        # # Under-relaxation
-        # alpha = self.config.under_relaxation_v
-        # vr_relaxed = alpha * vr_new + (1 - alpha) * vr
-        
         return vr_new
     
-    def solve_axial_momentum(self, vr, vz, p, rho):
+    def solve_axial_momentum(self, vr, vz, p, rho, mu):
         """
         Solve axial momentum equation:
         
@@ -161,7 +169,6 @@ class MomentumSolver:
         Interior points: i = 1 to nr-2, j = 1 to nz-1
         """
         nr, nz = self.nr, self.nz
-        mu = self.fluid.viscosity
         g = self.config.gravity
         vz_new = vz.copy()
         alpha = self.config.under_relaxation_v
@@ -213,11 +220,25 @@ class MomentumSolver:
                 vz_s = 0.5 * (vz[i, max(j-1, 0)] + vz[i, j]) if j > 0 else vz[i, j]
                 m_dot_s = rho_p * vz_s * A_s
                 
+                # === VISCOSITY ===
+                mu_n = mu[i, j_n]
+                mu_s = mu[i, j_s]
+                mu_p = 0.5 * (mu_s + mu_n)
+            
+                i_e = min(i + 1, nr - 1)
+                mu_e = 0.5 * (mu[i_e, j_s] + mu[i_e, j_n])
+                mu_e = 0.5 * (mu_p + mu_e)
+                
+                # West face: between vz[i-1,j] and vz[i,j]
+                i_w = max(i - 1, 0)
+                mu_w = 0.5 * (mu[i_w, j_s] + mu[i_w, j_n])
+                mu_w = 0.5 * (mu_p + mu_w)               
+
                 # === DIFFUSION COEFFICIENTS ===
-                D_e = mu * A_e / dr_e
-                D_w = mu * A_w / dr_w
-                D_n = 2 * mu * A_n / dz_n
-                D_s = 2 * mu * A_s / dz_s
+                D_e = mu_e * A_e / dr_e
+                D_w = mu_w * A_w / dr_w
+                D_n = 2 * mu_n * A_n / dz_n
+                D_s = 2 * mu_s * A_s / dz_s
                 
                 # === NEIGHBOR COEFFICIENTS ===
                 a_E = D_e + max(-m_dot_e, 0)
@@ -228,7 +249,7 @@ class MomentumSolver:
                 # Center coefficient
                 a_P0 = a_E + a_W + a_N + a_S 
                 # + (m_dot_e - m_dot_w + m_dot_n - m_dot_s)
-                a_P0 = max(a_P0, 1e-10)
+                # a_P0 = max(a_P0, 1e-10)
                 
                 # === NEIGHBOR VELOCITIES ===
                 vz_E = vz[min(i+1, nr-1), j]
@@ -270,21 +291,17 @@ class MomentumSolver:
                 # Store d coefficient
                 self.d_z[i, j] = A_pressure / a_P
         
-        # # Under-relaxation
-        # alpha = self.config.under_relaxation_v
-        # vz_relaxed = alpha * vz_new + (1 - alpha) * vz
-        
         return vz_new
     
-    def solve(self, vr, vz, p, rho):
+    def solve(self, vr, vz, p, rho, mu):
         """
         Solve both momentum equations and return updated velocities.
         
         Returns:
             vr_new, vz_new: Updated velocity fields
         """
-        vr_new = self.solve_radial_momentum(vr, vz, p, rho)
-        vz_new = self.solve_axial_momentum(vr_new, vz, p, rho)
+        vr_new = self.solve_radial_momentum(vr, vz, p, rho, mu)
+        vz_new = self.solve_axial_momentum(vr_new, vz, p, rho, mu)
         
         return vr_new, vz_new
     

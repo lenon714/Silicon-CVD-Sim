@@ -9,7 +9,7 @@ class TemperatureSolver():
 
     def solve_temperature(self, vr, vz, rho, tc, T):
         nr, nz = self.nr, self.nz
-        for outer_iter in range(200):
+        for outer_iter in range(20):
             T_old = T.copy() 
             for i in range(1, nr - 1):
                 for j in range(1, nz - 1):
@@ -59,12 +59,15 @@ class TemperatureSolver():
                     a_W = D_w + max(m_dot_w, 0)
                     a_N = D_n + max(-m_dot_n, 0)
                     a_S = D_s + max(m_dot_s, 0)
-
                     a_P = a_E + a_W + a_N + a_S
 
-                    T[i,j] = (a_E*T[i+1,j] + a_W*T[i-1,j] + a_N*T[i,j+1] + a_S*T[i,j-1]) / a_P
+                    T_new = (a_E * T[i+1, j] + a_W * T[i-1, j] +
+                             a_N * T[i, j+1] + a_S * T[i, j-1]) / a_P
+                    alpha_T = 0.7
 
-            T = TemperatureBoundaryConditions(self.grid, self.config  ).apply(T)
+                    T[i, j] = alpha_T * T_new + (1 - alpha_T) * T[i, j]
+
+            T = TemperatureBoundaryConditions(self.grid, self.config).apply(T)
 
             change = np.max(np.abs(T - T_old))
             if change < 1e-6:

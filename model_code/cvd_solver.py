@@ -74,7 +74,7 @@ class CVDSolver:
         """Momentum Solver"""
         momentum_solver = MomentumSolver(self.grid, self.fluid, self.config)
         self.vr, self.vz = momentum_solver.solve(
-            self.vr, self.vz, self.p, self.rho
+            self.vr, self.vz, self.p, self.rho, self.mu
         )
         self.d_r, self.d_z = momentum_solver.get_d_coefficients()
         
@@ -120,14 +120,17 @@ class CVDSolver:
         M_N2 = 0.02802 # kg/mol
         R = 8.314
         
-        alpha_rho = 0.3
+        alpha_rho = 0.2
         
         for i in range(nr):
             for j in range(nz):
                 T_ij = self.T[i, j]
                 
+                # Update viscosity
                 self.mu[i, j] = a0 + a1 * T_ij + a2 * T_ij**2
+                # Update Thermal Conductivity
                 self.tc[i, j] = b0 + b1 * T_ij + b2 * T_ij**2
+                # Update Heat Capacity
                 self.cp[i, j] = c0 + c1 * T_ij + c2 * T_ij**2
                 
                 # Under relaxation
@@ -204,7 +207,7 @@ class CVDSolver:
             self.solve_temperature()
 
             # 8. Solve remaining fluid properties
-            self.solve_properties()
+            # self.solve_properties()
 
             # self.apply_boundary_conditions()
 
@@ -215,7 +218,7 @@ class CVDSolver:
                 print(f"  vz range: [{np.nanmin(self.vz):.6f}, {np.nanmax(self.vz):.6f}]")
                 print(f"  p range:  [{np.nanmin(self.p):.6f}, {np.nanmax(self.p):.6f}]")
                 return False
-            
+
             # 8. Check convergence
             if iteration % 5 == 0:
                 mass_res, vr_res, vz_res = self.compute_residuals()
@@ -232,8 +235,7 @@ class CVDSolver:
                     print(f"  Final mass residual: {mass_res:.6e}")
                     self.mass_res.append(mass_res)
                     self.iteration.append(iteration)
-                    return True
-                
+                    return True                
         
         print(f"\n✗ Did not converge after {self.config.max_iterations} iterations")
         return False
