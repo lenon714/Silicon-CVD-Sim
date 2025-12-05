@@ -123,7 +123,7 @@ class MomentumSolver:
                 # + (m_dot_e - m_dot_w + m_dot_n - m_dot_s) 
                 
                 # Ensure a_P is positive for stability
-                # a_P0 = max(a_P0, 1e-10)
+                a_P0 = max(a_P0, 1e-10)
                 
                 # === NEIGHBOR VELOCITIES ===
                 vr_E = vr[min(i+1, nr), j]
@@ -249,7 +249,8 @@ class MomentumSolver:
                 # Center coefficient
                 a_P0 = a_E + a_W + a_N + a_S 
                 # + (m_dot_e - m_dot_w + m_dot_n - m_dot_s)
-                # a_P0 = max(a_P0, 1e-10)
+                
+                a_P0 = max(a_P0, 1e-10)
                 
                 # === NEIGHBOR VELOCITIES ===
                 vz_E = vz[min(i+1, nr-1), j]

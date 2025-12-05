@@ -17,7 +17,7 @@ class PressureSolver:
             print(f"  d_r nonzero: {np.count_nonzero(d_r)} / {d_r.size}")
             print(f"  d_z nonzero: {np.count_nonzero(d_z)} / {d_z.size}")
 
-        for outer_iter in range(200):
+        for outer_iter in range(100):
             p_prime_old = p_prime.copy()
             
             # ========== RADIAL SWEEPS ==========

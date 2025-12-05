@@ -7,17 +7,14 @@ def main():
     config = SimulationConfig(
         nr=30,
         nz=20,
-        inlet_velocity=0.05,
-        under_relaxation_p=0.5,
+        inlet_velocity=0.1,
+        under_relaxation_p=0.1,
         under_relaxation_v=0.3,
-        max_iterations=8000,
-        pressure_outlet=100,
+        max_iterations=5000,
+        pressure_outlet=133,
     )
     
-    fluid = FluidProperties(
-        density=0.15,
-        viscosity=1.5e-5
-    )
+    fluid = FluidProperties()
     
     print("="*70)
     print("LPCVD REACTOR SIMULATION")
