@@ -117,12 +117,16 @@ class VelocityBoundaryConditions:
         
         for i in range(self.nr):
             r_center = self.grid.r_centers[i]
-            
             if r_center >= R_wafer:
+                vz_interior = vz[i, 1]
+                if vz_interior > 0:
+                    vz[i, 0] = 0.0
+                else:
+                    vz[i, 0] = vz_interior
+                
                 vr[i, 0] = 0.0
                 if i + 1 <= self.nr:
                     vr[i + 1, 0] = 0.0
-                vz[i, 0] = 0.0
     
     def _apply_outlet(self, vr: np.ndarray, vz: np.ndarray):
         R_wafer = self.config.wafer_radius
@@ -131,7 +135,6 @@ class VelocityBoundaryConditions:
             r_center = self.grid.r_centers[i]
             if r_center >= R_wafer:
                 vz[i, 0] = vz[i, 1]
-
 
 class TemperatureBoundaryConditions:
     """
@@ -288,7 +291,6 @@ class TemperatureBoundaryConditions:
         #     if r_center >= R_wafer:
         #         T[i, 0] = T[i, 1]
         pass
-
 
 class PressureBoundaryConditions:
     """

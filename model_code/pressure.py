@@ -115,10 +115,10 @@ class PressureSolver:
                     rho_s = 0.5 * (rho[i, max(j-1, 0)] + rho[i, j])
 
                     # Standard coefficients
-                    a_E = rho_e * d_r[i+1, j] * A_e if i + 1 < nr else 0
-                    a_W = rho_w * d_r[i, j] * A_w if i > 0 else 0
-                    a_N = rho_n * d_z[i, j+1] * A_n if j + 1 < nz else 0
-                    a_S = rho_s * d_z[i, j] * A_s if j > 0 else 0
+                    a_E = rho_e * d_r[i+1, j] * A_e
+                    a_W = rho_w * d_r[i, j] * A_w
+                    a_N = rho_n * d_z[i, j+1] * A_n
+                    a_S = rho_s * d_z[i, j] * A_s
                     a_P = a_E + a_W + a_N + a_S
 
                     mass_imb = self._compute_mass_imbalance(i, j, vr, vz, rho)  

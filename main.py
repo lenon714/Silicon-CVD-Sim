@@ -8,10 +8,10 @@ def main():
         nr=30,
         nz=20,
         inlet_velocity=0.1,
-        under_relaxation_p=0.1,
-        under_relaxation_v=0.3,
+        under_relaxation_p=0.3,
+        under_relaxation_v=0.5,
         max_iterations=5000,
-        pressure_outlet=133,
+        pressure_outlet=60,
     )
     
     fluid = FluidProperties()

@@ -23,7 +23,7 @@ class CVDSolver:
         
         # # Initialize vz with linear profile from inlet to outlet
         for i in range(nr):
-            self.vz[i, :] = np.linspace(self.config.inlet_velocity, 0.1, nz + 1)
+            self.vz[i, :] = np.linspace(0.0, -self.config.inlet_velocity, nz + 1)
         
         # Pressure
         self.p = np.ones((nr, nz)) * self.config.pressure_outlet
@@ -47,22 +47,44 @@ class CVDSolver:
                     self.T[i, j] = self.config.T_wafer - (self.config.T_wafer - self.config.T_inlet) * z_frac
                 else:
                     self.T[i, j] = self.config.T_wall
-        
-        # Visualize initial temperature
-        # R, Z = np.meshgrid(self.grid.r_centers, self.grid.z_centers, indexing='ij')
-        # plt.contourf(R, Z, self.T, levels=20, cmap='autumn')
-        # plt.show()
-        
+
+        M_N2 = 0.02802
+        R = 8.314
         self.rho = np.ones((nr, nz)) * self.fluid.density
+        for i in range(nr):
+            for j in range(nz):
+                self.rho[i, j] = self.p[i, j] * M_N2 / (R * self.T[i, j])
         
         self.mu = np.ones((nr, nz)) * self.fluid.viscosity
         self.tc = np.ones((nr, nz)) * self.fluid.tc
         self.cp = np.ones((nr, nz)) * 1040
 
+        a0, a1, a2 = 5.73e-6, 4.37e-8, -9.28e-12
+        b0, b1, b2 = 8.54e-3, 6.23e-5, -4.34e-9
+        c0, c1, c2 = 9.83e2, 1.58e-1, 1.69e-5
+
+        for i in range(nr):
+            for j in range(nz):
+                T = self.T[i, j]
+                
+                # Update viscosity
+                self.mu[i, j] = a0 + a1 * T + a2 * T**2
+                # Update Thermal Conductivity
+                self.tc[i, j] = b0 + b1 * T + b2 * T**2
+                # Update Heat Capacity
+                self.cp[i, j] = c0 + c1 * T + c2 * T**2
+
         self.d_r = np.zeros((nr + 1, nz))
         self.d_z = np.zeros((nr, nz + 1))
         
         print("Fields initialized successfully")
+
+        # Visualize initials
+        R, Z = np.meshgrid(self.grid.r_centers, self.grid.z_centers, indexing='ij')
+
+        # plt.contourf(R, Z, self.T, levels=20, cmap='autumn')
+        # plt.contourf(R, Z, self.rho, levels=20, cmap='autumn')
+        # plt.show()
         
     def apply_boundary_conditions(self):
         """Apply boundary conditions"""
@@ -70,8 +92,8 @@ class CVDSolver:
         pressure_bc = PressureBoundaryConditions(self.grid, self.config)
         temperature_bc = TemperatureBoundaryConditions(self.grid, self.config)
         self.vr, self.vz = velocity_bc.apply(self.vr, self.vz, self.rho)
-        # self.p = pressure_bc.apply(self.p)
-        # self.T = temperature_bc.apply(self.T)
+        self.p = pressure_bc.apply(self.p)
+        self.T = temperature_bc.apply(self.T)
         
     def solve_momentum(self):
         """Momentum Solver"""
@@ -112,7 +134,7 @@ class CVDSolver:
             self.vr, self.vz, self.rho, self.tc, self.T
         )
 
-    def solve_properties(self):
+    def solve_properties(self, iteration = -1):
         """Update fluid properties with under-relaxation for stability"""
         nr, nz = self.config.nr, self.config.nz
         
@@ -123,7 +145,16 @@ class CVDSolver:
         M_N2 = 0.02802 # kg/mol
         R = 8.314
         
-        alpha_rho = 0.2
+        if iteration == -1:
+            alpha_rho = 1
+        elif iteration < 100:
+            alpha_rho = 0.01
+        elif iteration < 300:
+            alpha_rho = 0.05
+        elif iteration < 500:
+            alpha_rho = 0.1
+        else:
+            alpha_rho = 0.2
         
         for i in range(nr):
             for j in range(nz):
@@ -198,19 +229,17 @@ class CVDSolver:
         return mass_res, vr_res, vz_res
     
     def solve(self, verbose: bool = True) -> bool:
-        """Main solution loop with staged coupling"""
-        
+        """Main solution loop"""
+
         print("\n" + "="*70)
-        print("Starting iteration with staged coupling")
+        print("Starting iteration")
         print("="*70)
         
         # Staged coupling thresholds
-        ISOTHERMAL_ITERS = self.config.max_iterations // 25
-        TEMP_ONLY_ITERS = self.config.max_iterations // 10  
-        FULL_COUPLING_ITERS = self.config.max_iterations // 6
+        temp_iteration = 1
         
         best_mass_res = 1e10
-        
+
         for iteration in range(self.config.max_iterations):
             
             # 1. Apply boundary conditions
@@ -232,15 +261,11 @@ class CVDSolver:
             self.apply_boundary_conditions()
             
             # 7. Solve temperature (after isothermal phase)
-            if iteration >= ISOTHERMAL_ITERS:
+            if iteration % temp_iteration == 0:
                 self.solve_temperature()
             
             # 8. Update properties (after temperature stabilizes)
-            if iteration >= FULL_COUPLING_ITERS:
-                self.solve_properties()
-            elif iteration >= TEMP_ONLY_ITERS and iteration % 20 == 0:
-                # Gradual property introduction
-                self.solve_properties()
+                self.solve_properties(iteration)
             
             # Apply BCs after property update
             self.apply_boundary_conditions()
@@ -258,19 +283,20 @@ class CVDSolver:
                     best_mass_res = mass_res
                 
                 if verbose and iteration % 50 == 0:
-                    stage = "isothermal" if iteration < ISOTHERMAL_ITERS else \
-                            "temp only" if iteration < TEMP_ONLY_ITERS else \
-                            "gradual" if iteration < FULL_COUPLING_ITERS else "full"
+                    stage = 'Full' if iteration % temp_iteration == 0 else 'Isothermal'
                     print(f"Iter {iteration:4d} [{stage:10s}]: mass_res={mass_res:.4e}, "
                         f"rho=[{self.rho.min():.5f},{self.rho.max():.5f}], "
                         f"T=[{self.T.min():.0f},{self.T.max():.0f}]")
                     self.mass_res.append(mass_res)
                     self.iteration.append(iteration)
+                    
+                    # diag.run_diagnostics(self)
                 
-                if not np.isnan(mass_res) and mass_res < self.config.convergence_criteria:
+                if not np.isnan(mass_res) and mass_res < self.config.convergence_criteria and iteration > 300:
                     print(f"\n✓ Converged after {iteration} iterations!")
                     print(f"  Final mass residual: {mass_res:.6e}")
                     return True
+                
         
         print(f"\n✗ Did not converge after {self.config.max_iterations} iterations")
         print(f"  Best mass residual achieved: {best_mass_res:.6e}")
