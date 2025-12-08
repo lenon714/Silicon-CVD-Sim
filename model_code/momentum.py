@@ -15,9 +15,8 @@ class MomentumSolver:
     Using upwind differencing for convection and central differencing for diffusion.
     """
     
-    def __init__(self, grid, fluid, config):
+    def __init__(self, grid, config):
         self.grid = grid
-        self.fluid = fluid
         self.config = config
         self.nr = grid.nr
         self.nz = grid.nz

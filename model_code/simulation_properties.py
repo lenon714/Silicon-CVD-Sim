@@ -3,13 +3,6 @@
 from model_code import *
 
 @dataclass
-class FluidProperties:
-    """Fluid properties"""
-    density: float = 0.00116  # kg/m³ (N2 at 1 torr, 300K)
-    viscosity: float = 1.5e-5  # Pa·s
-    tc: float = 0.026 # Thermal Conductivity
-    
-@dataclass
 class SimulationConfig:
     """Configuration for the LPCVD reactor simulation"""
     # Grid dimensions
@@ -23,6 +16,7 @@ class SimulationConfig:
     # Reactor geometry
     pipe_radius: float = 0.025
     pipe_height: float = 0.025
+    z_pipe_bottom: float = 0.02
     wafer_radius: float = 0.125
     
     # Process conditions
@@ -43,9 +37,15 @@ class SimulationConfig:
     T_wall: float = 290
     T_wafer: float = 1000
 
-@dataclass
-class Nitrogen:
-    pass
+    # Initial Concentrations
+    n2: float = 1
+    sih4: float = 0
+    h2: float = 0
+    init_composition: tuple[float] = (1, 0, 0)
+    inlet_composition: tuple[float] = (0.9, 0.08, 0.02)
+
+    # Molar Masses
+    masses: tuple[float] = (0.02801, 0.03212, 0.00202)
 
 class StaggeredGrid:
     """Staggered grid in cylindrical coordinates"""

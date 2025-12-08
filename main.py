@@ -8,13 +8,11 @@ def main():
         nr=30,
         nz=20,
         inlet_velocity=0.1,
-        under_relaxation_p=0.3,
+        under_relaxation_p=0.5,
         under_relaxation_v=0.5,
         max_iterations=5000,
-        pressure_outlet=60,
+        pressure_outlet=100,
     )
-    
-    fluid = FluidProperties()
     
     print("="*70)
     print("LPCVD REACTOR SIMULATION")
@@ -26,7 +24,7 @@ def main():
     print(f"  Under-relaxation: α_p={config.under_relaxation_p}, α_v={config.under_relaxation_v}")
     
     # Create and run solver
-    solver = CVDSolver(config, fluid)
+    solver = CVDSolver(config)
     
     converged = solver.solve(verbose=True)
     
