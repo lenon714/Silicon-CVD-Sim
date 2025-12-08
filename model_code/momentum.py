@@ -113,11 +113,8 @@ class MomentumSolver:
                 a_N = D_n + max(-m_dot_n, 0)
                 a_S = D_s + max(m_dot_s, 0)
                 
-                # Source term: -2μ v_r / r²
-                S_p = -2 * mu[i, j] * dV / (r * r)  # Coefficient of v_r in source
-                
                 # Center coefficient
-                a_P0 = a_E + a_W + a_N + a_S - S_p
+                a_P0 = a_E + a_W + a_N + a_S - b
                 # This term caused a lot of instability
                 # + (m_dot_e - m_dot_w + m_dot_n - m_dot_s) 
                 
@@ -136,20 +133,18 @@ class MomentumSolver:
                 P_E = p[i_e, j]
                 A_pressure = r * dz_p  # Area for pressure force
                 
-                # === SOLVE FOR v_r ===
-                # a_P v_r = a_E v_r,E + a_W v_r,W + a_N v_r,N + a_S v_r,S + (P_W - P_E) A + b
-                numerator = (a_E * vr_E + a_W * vr_W + a_N * vr_N + a_S * vr_S 
-                            + (P_W - P_E) * A_pressure)
+                # === SOURCE TERM ===
+                # Source term: 2μ v_r / r²
+                b = 2 * mu[i, j] * dV / (r * r)  # Coefficient of v_r in source
                 
-                # vr_new[i, j] = numerator / a_P
-                
+                # === SOLVE FOR v_r ===                
                 a_P = a_P0 / alpha # Effective central coefficient
                 
                 # Source now includes contribution from old velocity
                 source_old = ((1 - alpha) / alpha) * a_P0 * vr[i, j]
-            
+
                 numerator = (a_E * vr_E + a_W * vr_W + a_N * vr_N + a_S * vr_S 
-                            + (P_W - P_E) * A_pressure + source_old)
+                            + (P_W - P_E) * A_pressure + b + source_old)
                 
                 vr_new[i, j] = numerator / a_P
 
@@ -262,31 +257,19 @@ class MomentumSolver:
                 P_N = p[i, j_n]
                 A_pressure = r * dr_p
                 
-                # === SOURCE TERM (gravity) ===
+                # === SOURCE TERM ===
                 # Gravity acts in -z direction if z points up
                 b = -rho_p * g * dV
                 
                 # === SOLVE FOR v_z ===
-                numerator = (a_E * vz_E + a_W * vz_W + a_N * vz_N + a_S * vz_S
-                            + (P_S - P_N) * A_pressure + b)
-                
-                # vz_new[i, j] = numerator / a_P
-
-                # Gravity source
-                b_gravity = -rho_p * g * dV
-
                 # Under-relaxation
                 a_P = a_P0 / alpha
                 source_old = ((1 - alpha) / alpha) * a_P0 * vz[i, j]
                 
                 numerator = (a_E * vz_E + a_W * vz_W + a_N * vz_N + a_S * vz_S
-                            + (P_S - P_N) * A_pressure + b_gravity + source_old)
+                            + (P_S - P_N) * A_pressure + b + source_old)
                 
                 vz_new[i, j] = numerator / a_P
-                
-                # d coefficient with under-relaxation built in
-                self.d_z[i, j] = A_pressure / a_P
-
                 
                 # Store d coefficient
                 self.d_z[i, j] = A_pressure / a_P
