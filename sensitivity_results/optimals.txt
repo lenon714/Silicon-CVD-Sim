@@ -1,0 +1,19 @@
+======================================================================
+OPTIMAL CONDITIONS
+======================================================================
+
+Maximize Deposition (with uniformity < 10%):
+     parameter_name  parameter_value  avg_deposition_rate  non_uniformity
+5           T_wafer      1133.333333           510.898607        2.482809
+4           T_wafer      1066.666667           222.970813        1.702154
+27  pressure_outlet       159.600000            96.886349        0.222663
+26  pressure_outlet       150.733333            93.723565        0.248381
+25  pressure_outlet       141.866667            87.366844        0.804496
+
+Minimize Non-uniformity:
+     parameter_name  parameter_value  avg_deposition_rate  non_uniformity
+27  pressure_outlet       159.600000            96.886349        0.222663
+26  pressure_outlet       150.733333            93.723565        0.248381
+22  pressure_outlet       115.266667            78.133549        0.341872
+21  pressure_outlet       106.400000            75.305232        0.364304
+25  pressure_outlet       141.866667            87.366844        0.804496

@@ -3,40 +3,21 @@
 from model_code import *
 
 def main():
-    # Configuration with stable parameters
     config = SimulationConfig(
-        nr=30,
-        nz=20,
-        inlet_velocity=0.1,
-        under_relaxation_p=0.5,
-        under_relaxation_v=0.5,
-        max_iterations=5000,
-        pressure_outlet=100,
+        nr=38, nz=53,
+        T_wafer=1000,
+        T_inlet=290,
+        T_wall=290,
+        inlet_velocity=0.6,
+        pressure_outlet=133.0,
+        inlet_composition=(0.9, 0.08, 0.02),
     )
-    
-    print("="*70)
-    print("LPCVD REACTOR SIMULATION")
-    print("="*70)
-    print(f"\nConfiguration:")
-    print(f"  Grid: {config.nr} × {config.nz}")
-    print(f"  Inlet velocity: {config.inlet_velocity} m/s")
-    print(f"  Pressure: {config.pressure_outlet} Pa ({config.pressure_outlet/133.322:.1f} torr)")
-    print(f"  Under-relaxation: α_p={config.under_relaxation_p}, α_v={config.under_relaxation_v}")
-    
-    # Create and run solver
-    solver = CVDSolver(config)
-    
-    converged = solver.solve(verbose=True)
-    
-    if converged:
-        print("\n" + "="*70)
-        print("SUCCESS - Visualizing results")
-        print("="*70)
-        solver.visualize()
-    else:
-        print("\n" + "="*70)
-        print("FAILED - Check parameters and try again")
-        print("="*70)
+
+    CVDSolver(config).solve(verbose=True)
+    # solver = load_run('Saved Runs/run_20251210_155432')
+    # solver.update_config(config)
+    # solver.solve()
+    # run_comprehensive_sweep(sweep_range='moderate')
 
 if __name__ == "__main__":
     main()
